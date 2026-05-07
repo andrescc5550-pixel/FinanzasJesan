@@ -48,8 +48,11 @@ function fmt(n) {
 }
 
 function fmtDate(d) {
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
+  const fecha = new Date(d);
+  const day = String(fecha.getUTCDate()).padStart(2, '0');
+  const month = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+  const year = fecha.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function today() {
