@@ -1,6 +1,6 @@
 // data.js — Comunicación con el servidor (API REST)
 
-const API = 'http://localhost:3000/api';
+const API = '/api';
 
 const DB = {
 
