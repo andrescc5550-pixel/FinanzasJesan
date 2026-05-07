@@ -1,0 +1,40 @@
+=====================================================
+   FINANZASPRO - INSTRUCCIONES DE USO
+   Sistema de Contabilidad para Empresas
+=====================================================
+
+REQUISITOS (solo se instalan una vez):
+---------------------------------------
+1. Descargar e instalar Node.js:
+   → Ve a: https://nodejs.org
+   → Descarga la versión "LTS" (la recomendada)
+   → Instálala como cualquier programa (Siguiente, Siguiente, Finalizar)
+
+CÓMO ABRIR EL SISTEMA:
+-----------------------
+1. Hacer doble clic en el archivo "Iniciar.bat"
+2. Esperar unos segundos (la primera vez instala componentes)
+3. El sistema se abrirá automáticamente en tu navegador (Chrome/Edge)
+4. ¡Listo! Ya puedes usar FinanzasPro
+
+IMPORTANTE:
+-----------
+- NO cierres la ventana negra (terminal) mientras usas el sistema
+- Para cerrar el sistema: cierra la ventana negra o presiona Ctrl+C
+- Los datos se guardan automáticamente en el archivo "finanzas.db"
+- Haz copias de seguridad de ese archivo regularmente
+
+FUNCIONES DEL SISTEMA:
+-----------------------
+✓ Dashboard     → Resumen general con gráficas
+✓ Nueva Transacción → Registrar ingresos y egresos
+✓ Historial     → Ver y buscar todas las transacciones
+✓ Reportes      → Análisis mensual y anual, exportar a PDF y CSV
+✓ Categorías    → Administrar categorías personalizadas
+✓ Configuración → Datos de la empresa y alertas
+
+SOPORTE:
+---------
+Si tienes algún problema, contacta al desarrollador.
+
+=====================================================

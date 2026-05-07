@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinanzasJESAN — Sistema de Contabilidad</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="jesan.png" class="brand-logo"/>
+      <div class="brand-text">
+        <span class="brand-name">FinanzasJESAN</span>
+        <span class="brand-sub">Contabilidad</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <p class="nav-label">Principal</p>
+      <a href="#" class="nav-item active" data-page="dashboard"><i class="fas fa-home"></i><span>Dashboard</span></a>
+      <a href="#" class="nav-item" data-page="nueva"><i class="fas fa-plus-circle"></i><span>Nueva Transacción</span></a>
+      <a href="#" class="nav-item" data-page="historial"><i class="fas fa-list-ul"></i><span>Historial</span></a>
+      <a href="#" class="nav-item" data-page="reportes"><i class="fas fa-chart-bar"></i><span>Reportes</span></a>
+      <p class="nav-label">Sistema</p>
+      <a href="#" class="nav-item" data-page="categorias"><i class="fas fa-tags"></i><span>Categorías</span></a>
+      <a href="#" class="nav-item" data-page="config"><i class="fas fa-cog"></i><span>Configuración</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="company-badge">
+        <div class="company-avatar" id="avatar-letter">E</div>
+        <div class="company-info">
+          <span id="company-name-sidebar">Mi Empresa</span>
+          <span>Administrador</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content" id="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+        <div>
+          <h1 class="page-title" id="pageTitle">Dashboard</h1>
+          <p class="page-sub" id="pageSub">Resumen financiero general</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="date-badge"><i class="fas fa-calendar-alt"></i> <span id="currentDate"></span></div>
+        <button class="btn-primary" onclick="navigateTo('nueva')"><i class="fas fa-plus"></i> Agregar</button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section class="page active" id="page-dashboard">
+      <div class="kpi-grid">
+        <div class="kpi-card balance"><div class="kpi-icon"><i class="fas fa-wallet"></i></div><div class="kpi-info"><span class="kpi-label">Balance Total</span><span class="kpi-value" id="kpi-balance">Q 0.00</span><span class="kpi-trend" id="kpi-balance-trend"></span></div></div>
+        <div class="kpi-card income"><div class="kpi-icon"><i class="fas fa-arrow-trend-up"></i></div><div class="kpi-info"><span class="kpi-label">Ingresos del Mes</span><span class="kpi-value" id="kpi-income">Q 0.00</span><span class="kpi-trend" id="kpi-income-count"></span></div></div>
+        <div class="kpi-card expense"><div class="kpi-icon"><i class="fas fa-arrow-trend-down"></i></div><div class="kpi-info"><span class="kpi-label">Egresos del Mes</span><span class="kpi-value" id="kpi-expense">Q 0.00</span><span class="kpi-trend" id="kpi-expense-count"></span></div></div>
+        <div class="kpi-card savings"><div class="kpi-icon"><i class="fas fa-piggy-bank"></i></div><div class="kpi-info"><span class="kpi-label">Ahorro del Mes</span><span class="kpi-value" id="kpi-savings">Q 0.00</span><span class="kpi-trend" id="kpi-savings-pct"></span></div></div>
+      </div>
+      <div class="charts-row">
+        <div class="card chart-card wide">
+          <div class="card-header">
+            <h3>Flujo de Efectivo — Últimos 6 Meses</h3>
+            <div class="chart-legend"><span class="legend-dot income-dot"></span>Ingresos<span class="legend-dot expense-dot" style="margin-left:12px"></span>Egresos</div>
+          </div>
+          <canvas id="flowChart" height="110"></canvas>
+        </div>
+        <div class="card chart-card">
+          <div class="card-header"><h3>Por Categoría</h3></div>
+          <canvas id="categoryChart" height="180"></canvas>
+          <div id="categoryLegend" class="donut-legend"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <h3>Transacciones Recientes</h3>
+          <button class="btn-link" onclick="navigateTo('historial')">Ver todas <i class="fas fa-arrow-right"></i></button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Tipo</th><th class="text-right">Monto</th></tr></thead>
+            <tbody id="recentTableBody"><tr><td colspan="5" class="empty-state"><i class="fas fa-inbox"></i><br>No hay transacciones aún</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- NUEVA TRANSACCIÓN -->
+    <section class="page" id="page-nueva">
+      <div class="form-container">
+        <div class="type-selector">
+          <button class="type-btn active" id="btnIngreso" onclick="setType('ingreso')"><i class="fas fa-arrow-up"></i> Ingreso</button>
+          <button class="type-btn expense-type" id="btnEgreso" onclick="setType('egreso')"><i class="fas fa-arrow-down"></i> Egreso</button>
+        </div>
+        <div class="card form-card">
+          <div class="form-grid">
+            <div class="form-group full"><label>Monto</label><div class="amount-wrap"><span class="currency-sym" id="currency-sym">Q</span><input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0"/></div></div>
+            <div class="form-group"><label>Descripción</label><input type="text" id="f-desc" placeholder="Ej: Pago de cliente ABC"/></div>
+            <div class="form-group"><label>Categoría</label><select id="f-cat"></select></div>
+            <div class="form-group"><label>Fecha</label><input type="date" id="f-date"/></div>
+            <div class="form-group"><label>Método de Pago</label>
+              <select id="f-method"><option>Efectivo</option><option>Transferencia</option><option>Cheque</option><option>Tarjeta de Crédito</option><option>Tarjeta de Débito</option><option>Otro</option></select>
+            </div>
+            <div class="form-group full"><label>Notas (opcional)</label><textarea id="f-notes" rows="3" placeholder="Información adicional..."></textarea></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-ghost" onclick="clearForm()"><i class="fas fa-eraser"></i> Limpiar</button>
+            <button class="btn-primary" onclick="saveTransaction()"><i class="fas fa-save"></i> Guardar Transacción</button>
+          </div>
+        </div>
+        <div class="mini-stats">
+          <div class="mini-stat"><span>Transacciones hoy</span><strong id="stat-today">0</strong></div>
+          <div class="mini-stat"><span>Esta semana</span><strong id="stat-week">0</strong></div>
+          <div class="mini-stat"><span>Este mes</span><strong id="stat-month">0</strong></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="page" id="page-historial">
+      <div class="filter-bar">
+        <input type="text" id="search" placeholder="Buscar..." class="search-input" oninput="renderHistorial()"/>
+        <select id="filter-type" onchange="renderHistorial()"><option value="">Todos los tipos</option><option value="ingreso">Ingresos</option><option value="egreso">Egresos</option></select>
+        <select id="filter-cat" onchange="renderHistorial()"><option value="">Todas las categorías</option></select>
+        <input type="date" id="filter-from" onchange="renderHistorial()"/>
+        <input type="date" id="filter-to" onchange="renderHistorial()"/>
+        <button class="btn-ghost" onclick="clearFilters()"><i class="fas fa-times"></i> Limpiar</button>
+      </div>
+      <div class="history-summary">
+        <span id="hist-count">0 transacciones</span>
+        <div class="hist-totals">
+          <span class="income-text"><i class="fas fa-arrow-up"></i> <strong id="hist-income">Q 0.00</strong></span>
+          <span class="expense-text"><i class="fas fa-arrow-down"></i> <strong id="hist-expense">Q 0.00</strong></span>
+          <span><strong id="hist-balance">Balance: Q 0.00</strong></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Método</th><th>Tipo</th><th class="text-right">Monto</th><th class="text-center">Acciones</th></tr></thead>
+            <tbody id="historialBody"><tr><td colspan="7" class="empty-state"><i class="fas fa-inbox"></i><br>No hay transacciones</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTES -->
+    <section class="page" id="page-reportes">
+      <div class="report-toolbar">
+        <select id="report-year" onchange="renderReports()"></select>
+        <select id="report-month" onchange="renderReports()">
+          <option value="">Todo el año</option>
+          <option value="0">Enero</option><option value="1">Febrero</option><option value="2">Marzo</option>
+          <option value="3">Abril</option><option value="4">Mayo</option><option value="5">Junio</option>
+          <option value="6">Julio</option><option value="7">Agosto</option><option value="8">Septiembre</option>
+          <option value="9">Octubre</option><option value="10">Noviembre</option><option value="11">Diciembre</option>
+        </select>
+        <button class="btn-primary" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+        <button class="btn-ghost" onclick="exportCSV()"><i class="fas fa-file-csv"></i> Exportar CSV</button>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi-card balance"><div class="kpi-icon"><i class="fas fa-coins"></i></div><div class="kpi-info"><span class="kpi-label">Total Ingresos</span><span class="kpi-value" id="r-income">Q 0.00</span></div></div>
+        <div class="kpi-card expense"><div class="kpi-icon"><i class="fas fa-receipt"></i></div><div class="kpi-info"><span class="kpi-label">Total Egresos</span><span class="kpi-value" id="r-expense">Q 0.00</span></div></div>
+        <div class="kpi-card income"><div class="kpi-icon"><i class="fas fa-scale-balanced"></i></div><div class="kpi-info"><span class="kpi-label">Balance Neto</span><span class="kpi-value" id="r-net">Q 0.00</span></div></div>
+        <div class="kpi-card savings"><div class="kpi-icon"><i class="fas fa-percent"></i></div><div class="kpi-info"><span class="kpi-label">Margen de Ahorro</span><span class="kpi-value" id="r-margin">0%</span></div></div>
+      </div>
+      <div class="charts-row">
+        <div class="card chart-card wide"><div class="card-header"><h3>Ingresos vs Egresos por Mes</h3></div><canvas id="reportFlowChart" height="130"></canvas></div>
+        <div class="card chart-card"><div class="card-header"><h3>Egresos por Categoría</h3></div><canvas id="reportPieChart" height="200"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>Resumen Mensual</h3></div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Mes</th><th class="text-right">Ingresos</th><th class="text-right">Egresos</th><th class="text-right">Balance</th></tr></thead>
+            <tbody id="monthlyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORÍAS -->
+    <section class="page" id="page-categorias">
+      <div class="two-col">
+        <div class="card">
+          <div class="card-header"><h3><span class="income-text">▲</span> Categorías de Ingresos</h3></div>
+          <ul class="cat-list" id="cat-income-list"></ul>
+          <div class="cat-add"><input type="text" id="new-income-cat" placeholder="Nueva categoría..."/><button class="btn-primary" onclick="addCategory('ingreso')"><i class="fas fa-plus"></i></button></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3><span class="expense-text">▼</span> Categorías de Egresos</h3></div>
+          <ul class="cat-list" id="cat-expense-list"></ul>
+          <div class="cat-add"><input type="text" id="new-expense-cat" placeholder="Nueva categoría..."/><button class="btn-primary" onclick="addCategory('egreso')"><i class="fas fa-plus"></i></button></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONFIGURACIÓN -->
+    <section class="page" id="page-config">
+      <div class="form-container" style="max-width:640px">
+        <div class="card form-card">
+          <h3 class="section-title">Información de la Empresa</h3>
+          <div class="form-grid">
+            <div class="form-group full"><label>Nombre de la Empresa</label><input type="text" id="cfg-company" placeholder="Mi Empresa S.A."/></div>
+            <div class="form-group"><label>NIT</label><input type="text" id="cfg-nit" placeholder="12345678-9"/></div>
+            <div class="form-group"><label>Moneda</label><select id="cfg-currency"><option value="Q">Quetzal (Q)</option><option value="$">Dólar ($)</option><option value="€">Euro (€)</option></select></div>
+            <div class="form-group full"><label>Dirección</label><input type="text" id="cfg-address" placeholder="Guatemala, Guatemala"/></div>
+            <div class="form-group full"><label>Teléfono</label><input type="text" id="cfg-phone" placeholder="+502 1234-5678"/></div>
+          </div>
+          <h3 class="section-title" style="margin-top:1.5rem">Alertas y Metas</h3>
+          <div class="form-grid">
+            <div class="form-group"><label>Alerta si egresos superan</label><input type="number" id="cfg-alert" placeholder="10000"/></div>
+            <div class="form-group"><label>Meta de ahorro mensual (%)</label><input type="number" id="cfg-savings-goal" placeholder="20" min="0" max="100"/></div>
+          </div>
+          <div class="form-actions">
+            <button class="btn-ghost danger-btn" onclick="resetData()"><i class="fas fa-trash"></i> Borrar todos los datos</button>
+            <button class="btn-primary" onclick="saveConfig()"><i class="fas fa-save"></i> Guardar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <div class="modal-overlay hidden" id="deleteModal">
+    <div class="modal">
+      <div class="modal-icon danger"><i class="fas fa-exclamation-triangle"></i></div>
+      <h3>¿Eliminar transacción?</h3>
+      <p>Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeModal()">Cancelar</button>
+        <button class="btn-danger" id="confirmDelete">Eliminar</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/data.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
