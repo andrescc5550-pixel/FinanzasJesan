@@ -59,8 +59,9 @@ const DB = {
       const s = filters.search.toLowerCase();
       result = result.filter(t => t.description.toLowerCase().includes(s) || t.category.toLowerCase().includes(s));
     }
-    if (filters.year !== undefined) result = result.filter(t => new Date(t.date + 'T00:00:00').getFullYear() === filters.year);
-    if (filters.month !== undefined && filters.month !== '') result = result.filter(t => new Date(t.date + 'T00:00:00').getMonth() === Number(filters.month));
+    // FIX: Usar UTC para compatibilidad con fechas de MySQL
+    if (filters.year !== undefined) result = result.filter(t => new Date(t.date).getUTCFullYear() === filters.year);
+    if (filters.month !== undefined && filters.month !== '') result = result.filter(t => new Date(t.date).getUTCMonth() === Number(filters.month));
     return result;
   },
 
@@ -70,10 +71,11 @@ const DB = {
     return { income, expense, balance: income - expense };
   },
 
+  // FIX: Usar UTC para compatibilidad con fechas de MySQL
   getMonthlyData(list, year) {
     const months = Array.from({ length: 12 }, () => ({ income: 0, expense: 0 }));
-    list.filter(t => new Date(t.date + 'T00:00:00').getFullYear() === year).forEach(t => {
-      const m = new Date(t.date + 'T00:00:00').getMonth();
+    list.filter(t => new Date(t.date).getUTCFullYear() === year).forEach(t => {
+      const m = new Date(t.date).getUTCMonth();
       if (t.type === 'ingreso') months[m].income += Number(t.amount);
       else months[m].expense += Number(t.amount);
     });

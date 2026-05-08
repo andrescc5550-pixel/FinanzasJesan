@@ -43,12 +43,16 @@ document.getElementById('menuToggle').addEventListener('click', () => {
 
 // ===== FORMATO =====
 function fmt(n) {
-  const sym = config.currency || 'Q';
+  const sym = (config && config.currency) ? config.currency : 'Q';
   return `${sym} ${Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
+function parseDate(d) {
+  return new Date(d);
+}
+
 function fmtDate(d) {
-  const fecha = new Date(d);
+  const fecha = parseDate(d);
   const day = String(fecha.getUTCDate()).padStart(2, '0');
   const month = String(fecha.getUTCMonth() + 1).padStart(2, '0');
   const year = fecha.getUTCFullYear();
@@ -59,14 +63,20 @@ function today() {
   return new Date().toISOString().split('T')[0];
 }
 
+function isSameMonth(dateStr, year, month) {
+  const d = parseDate(dateStr);
+  return d.getUTCFullYear() === year && d.getUTCMonth() === month;
+}
+
+function isSameYear(dateStr, year) {
+  return parseDate(dateStr).getUTCFullYear() === year;
+}
+
 // ===== DASHBOARD =====
 async function refreshDashboard() {
   allTransactions = await DB.getTransactions();
   const now = new Date();
-  const thisMonth = allTransactions.filter(t => {
-    const d = new Date(t.date + 'T00:00:00');
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-  });
+  const thisMonth = allTransactions.filter(t => isSameMonth(t.date, now.getFullYear(), now.getMonth()));
   const totals = DB.sumByType(allTransactions);
   const monthly = DB.sumByType(thisMonth);
 
@@ -82,7 +92,6 @@ async function refreshDashboard() {
   document.getElementById('kpi-balance-trend').textContent = balTrend;
   document.getElementById('kpi-balance-trend').style.color = totals.balance >= 0 ? '#059669' : '#dc2626';
 
-  // Alert check
   if (config.alertLimit && monthly.expense > Number(config.alertLimit)) {
     showToast(`⚠️ Egresos superaron el límite de ${fmt(config.alertLimit)}`, 'error');
   }
@@ -127,12 +136,15 @@ async function refreshFormStats() {
   const now = new Date();
   const todayStr = today();
   const weekAgo = new Date(now - 7 * 864e5).toISOString().split('T')[0];
-  document.getElementById('stat-today').textContent = allTransactions.filter(t => t.date === todayStr).length;
-  document.getElementById('stat-week').textContent = allTransactions.filter(t => t.date >= weekAgo).length;
-  document.getElementById('stat-month').textContent = allTransactions.filter(t => {
-    const d = new Date(t.date + 'T00:00:00');
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  document.getElementById('stat-today').textContent = allTransactions.filter(t => fmtDate(t.date) === fmtDate(todayStr)).length;
+  document.getElementById('stat-week').textContent = allTransactions.filter(t => {
+    const d = parseDate(t.date);
+    const w = parseDate(weekAgo);
+    return d >= w;
   }).length;
+  document.getElementById('stat-month').textContent = allTransactions.filter(t =>
+    isSameMonth(t.date, now.getFullYear(), now.getMonth())
+  ).length;
   await loadCategorySelect();
   if (!document.getElementById('f-date').value) document.getElementById('f-date').value = todayStr;
 }
@@ -168,7 +180,6 @@ async function renderHistorial() {
   allTransactions = await DB.getTransactions();
   allCategories = await DB.getCategories();
 
-  // Populate filter categories
   const filterCat = document.getElementById('filter-cat');
   const allCats = [...(allCategories.ingreso || []), ...(allCategories.egreso || [])];
   const currentVal = filterCat.value;
@@ -223,7 +234,9 @@ async function renderReports() {
   const year = parseInt(yearSel.value) || new Date().getFullYear();
   const month = document.getElementById('report-month').value;
 
-  const filtered = DB.filterTransactions(allTransactions, { year, month: month !== '' ? month : undefined });
+  let filtered = allTransactions.filter(t => isSameYear(t.date, year));
+  if (month !== '') filtered = filtered.filter(t => parseDate(t.date).getUTCMonth() === Number(month));
+
   const totals = DB.sumByType(filtered);
   const margin = totals.income > 0 ? ((totals.income - totals.expense) / totals.income * 100).toFixed(1) : 0;
 
@@ -233,12 +246,17 @@ async function renderReports() {
   document.getElementById('r-net').style.color = totals.balance >= 0 ? '#059669' : '#dc2626';
   document.getElementById('r-margin').textContent = `${margin}%`;
 
-  const monthlyData = DB.getMonthlyData(allTransactions, year);
+  const monthlyData = Array.from({ length: 12 }, () => ({ income: 0, expense: 0 }));
+  allTransactions.filter(t => isSameYear(t.date, year)).forEach(t => {
+    const m = parseDate(t.date).getUTCMonth();
+    if (t.type === 'ingreso') monthlyData[m].income += Number(t.amount);
+    else monthlyData[m].expense += Number(t.amount);
+  });
+
   renderReportCharts(year, month, monthlyData, filtered);
 }
 
 function renderReportCharts(year, month, monthlyData, filtered) {
-  // Monthly table
   const months = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const tbody = document.getElementById('monthlyBody');
   if (tbody) {
@@ -253,7 +271,6 @@ function renderReportCharts(year, month, monthlyData, filtered) {
     }).join('');
   }
 
-  // Charts
   const labels = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   reportFlowInst = destroyChart(reportFlowInst);
   reportFlowInst = renderFlowChart('reportFlowChart', monthlyData, labels);
@@ -324,7 +341,7 @@ async function saveConfig() {
 
 async function resetData() {
   if (!confirm('¿Estás seguro? Esto eliminará TODOS los datos del sistema.')) return;
-  await fetch('http://localhost:3000/api/reset', { method: 'POST' });
+  await fetch('/api/reset', { method: 'POST' });
   showToast('Todos los datos han sido eliminados', 'error');
   navigateTo('dashboard');
 }
@@ -353,9 +370,10 @@ async function exportPDF() {
   const cfg = await DB.getConfig();
   const year = parseInt(document.getElementById('report-year')?.value) || new Date().getFullYear();
   const month = document.getElementById('report-month')?.value;
-  const txs = DB.filterTransactions(allTransactions, { year, month: month !== '' ? month : undefined });
+  let txs = allTransactions.filter(t => isSameYear(t.date, year));
+  if (month !== '') txs = txs.filter(t => parseDate(t.date).getUTCMonth() === Number(month));
   const totals = DB.sumByType(txs);
-  const sym = cfg.currency || 'Q';
+  const sym = (cfg && cfg.currency) ? cfg.currency : 'Q';
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(20);
@@ -366,10 +384,8 @@ async function exportPDF() {
   doc.text(`Reporte Financiero — ${cfg.company || 'Mi Empresa'}`, 14, 28);
   doc.setFontSize(10);
   doc.text(`Generado el ${new Date().toLocaleDateString('es-GT')}`, 14, 35);
-
   doc.setDrawColor(226, 232, 240);
   doc.line(14, 40, 196, 40);
-
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(15, 23, 42);
   doc.text('Resumen', 14, 50);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(100, 116, 139);
@@ -378,7 +394,6 @@ async function exportPDF() {
   doc.setTextColor(100, 116, 139); doc.text(`Balance Neto:`, 14, 76);
   doc.setTextColor(totals.balance >= 0 ? 5 : 220, totals.balance >= 0 ? 150 : 38, totals.balance >= 0 ? 105 : 38);
   doc.text(`${sym} ${totals.balance.toFixed(2)}`, 80, 76);
-
   if (txs.length > 0) {
     doc.autoTable({
       startY: 90,
@@ -397,7 +412,7 @@ async function exportPDF() {
 // ===== EXPORTAR CSV =====
 function exportCSV() {
   const rows = [['Fecha','Descripción','Categoría','Método','Tipo','Monto','Notas']];
-  allTransactions.forEach(t => rows.push([t.date, t.description, t.category, t.method||'', t.type, t.amount, t.notes||'']));
+  allTransactions.forEach(t => rows.push([fmtDate(t.date), t.description, t.category, t.method||'', t.type, t.amount, t.notes||'']));
   const csv = rows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -417,7 +432,6 @@ async function init() {
   const now = new Date();
   document.getElementById('currentDate').textContent = now.toLocaleDateString('es-GT', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-  // Report year selector
   const yearSel = document.getElementById('report-year');
   if (yearSel) {
     for (let y = now.getFullYear(); y >= now.getFullYear() - 5; y--) {
@@ -431,7 +445,7 @@ async function init() {
     document.getElementById('avatar-letter').textContent = config.company[0].toUpperCase();
   }
   if (document.getElementById('currency-sym')) {
-    document.getElementById('currency-sym').textContent = config.currency || 'Q';
+    document.getElementById('currency-sym').textContent = (config && config.currency) ? config.currency : 'Q';
   }
 
   await refreshDashboard();

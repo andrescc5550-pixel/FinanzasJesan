@@ -12,9 +12,10 @@ let reportPieInst = null;
 
 function destroyChart(inst) { if (inst) { try { inst.destroy(); } catch(e) {} } return null; }
 
+// FIX: Usa la variable global config en lugar de llamar DB.getConfig()
 function formatCurrency(n) {
-  const cfg = DB.getConfig();
-  return cfg.currency + ' ' + n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const sym = (typeof config !== 'undefined' && config && config.currency) ? config.currency : 'Q';
+  return sym + ' ' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function renderFlowChart(canvasId, monthlyData, labels) {
@@ -31,7 +32,10 @@ function renderFlowChart(canvasId, monthlyData, labels) {
     },
     options: {
       responsive: true, maintainAspectRatio: true,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => formatCurrency(ctx.parsed.y) } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => formatCurrency(ctx.parsed.y) } }
+      },
       scales: {
         x: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' }, color: '#94a3b8' } },
         y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11, family: 'Inter' }, color: '#94a3b8', callback: v => formatCurrency(v) } }
@@ -48,7 +52,6 @@ function renderDonutChart(canvasId, data, legendId) {
   const total = values.reduce((a, b) => a + b, 0);
   const colors = labels.map((_, i) => CHART_COLORS.palette[i % CHART_COLORS.palette.length]);
 
-  // Legend
   if (legendId) {
     const leg = document.getElementById(legendId);
     if (leg) {
@@ -78,7 +81,6 @@ function renderDonutChart(canvasId, data, legendId) {
 }
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const MONTH_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 function getLast6Months() {
   const now = new Date();
@@ -90,58 +92,30 @@ function getLast6Months() {
   return result;
 }
 
+// FIX: Usa allTransactions global (ya cargado en app.js) en lugar de llamar DB.getTransactions()
 function renderDashboardCharts() {
   const months = getLast6Months();
-  const allTx = DB.getTransactions();
+
   const monthlyData = months.map(m => {
-    const txs = allTx.filter(t => {
-      const d = new Date(t.date + 'T00:00:00');
-      return d.getMonth() === m.month && d.getFullYear() === m.year;
+    const txs = allTransactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getUTCMonth() === m.month && d.getUTCFullYear() === m.year;
     });
-    const inc = txs.filter(t => t.type === 'ingreso').reduce((s,t) => s+t.amount, 0);
-    const exp = txs.filter(t => t.type === 'egreso').reduce((s,t) => s+t.amount, 0);
+    const inc = txs.filter(t => t.type === 'ingreso').reduce((s, t) => s + Number(t.amount), 0);
+    const exp = txs.filter(t => t.type === 'egreso').reduce((s, t) => s + Number(t.amount), 0);
     return { income: inc, expense: exp };
   });
 
   flowChartInst = destroyChart(flowChartInst);
   flowChartInst = renderFlowChart('flowChart', monthlyData, months.map(m => m.label));
 
-  // Category donut — all time
-  const catData = DB.getCategoryBreakdown(allTx, 'egreso');
+  // FIX: Usa allTransactions global
+  const catData = DB.getCategoryBreakdown(allTransactions, 'egreso');
   categoryChartInst = destroyChart(categoryChartInst);
   if (Object.keys(catData).length > 0) {
     categoryChartInst = renderDonutChart('categoryChart', catData, 'categoryLegend');
   } else {
     const leg = document.getElementById('categoryLegend');
     if (leg) leg.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:8px">Sin datos aún</p>';
-  }
-}
-
-function renderReportCharts(year, month) {
-  const monthlyData = DB.getMonthlyData(year);
-  reportFlowInst = destroyChart(reportFlowInst);
-  reportFlowInst = renderFlowChart('reportFlowChart', monthlyData, MONTH_NAMES);
-
-  // Pie for selected period
-  let txs = DB.filterTransactions({ year, month: month !== '' ? month : undefined });
-  const catData = DB.getCategoryBreakdown(txs, 'egreso');
-  reportPieInst = destroyChart(reportPieInst);
-  if (Object.keys(catData).length > 0) {
-    reportPieInst = renderDonutChart('reportPieChart', catData, null);
-  }
-
-  // Monthly table
-  const tbody = document.getElementById('monthlyBody');
-  if (tbody) {
-    tbody.innerHTML = monthlyData.map((m, i) => {
-      const bal = m.income - m.expense;
-      const balClass = bal >= 0 ? 'amount-income' : 'amount-expense';
-      return `<tr>
-        <td>${MONTH_FULL[i]}</td>
-        <td class="text-right amount-income">${formatCurrency(m.income)}</td>
-        <td class="text-right amount-expense">${formatCurrency(m.expense)}</td>
-        <td class="text-right ${balClass}">${formatCurrency(bal)}</td>
-      </tr>`;
-    }).join('');
   }
 }
